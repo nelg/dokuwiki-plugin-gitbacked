@@ -32,24 +32,38 @@ class action_plugin_gitbacked_editcommit extends DokuWiki_Action_Plugin {
         $controller->register_hook('DOKUWIKI_DONE', 'AFTER', $this, 'handle_periodic_pull');
     }
 
-    private function initRepo() {
-        //get path to the repo root (by default DokuWiki's savedir)
-        if(defined('DOKU_FARM')) {
-            $repoPath = $this->getConf('repoPath');
-        } else {
-            $repoPath = DOKU_INC.$this->getConf('repoPath');
-        }
+    private function initRepo($isAutoDetermineRepos=false, $filePath="") {
+		if($isAutoDetermineRepos) {
+			$repoPath = dirname($filePath);
+		} else {
+			//get path to the repo root (by default DokuWiki's savedir)
+			if(defined('DOKU_FARM')) {
+				$repoPath = $this->getConf('repoPath');
+			} else {
+				$repoPath = DOKU_INC.$this->getConf('repoPath');
+			}
+		}
         //set the path to the git binary
         $gitPath = trim($this->getConf('gitPath'));
         if ($gitPath !== '') {
             Git::set_bin($gitPath);
         }
-        //init the repo and create a new one if it is not present
-        io_mkdir_p($repoPath);
-        $repo = new GitRepo($repoPath, $this, true, true);
+		if ($isAutoDetermineRepos) {
+			$repo = new GitRepo($repoPath, $this, false, false);
+			$repoPath = $repo->get_repo_path();
+		} else {
+			//init the repo and create a new one if it is not present
+			io_mkdir_p($repoPath);
+			$repo = new GitRepo($repoPath, $this, true, true);
+		}
         //set git working directory (by default DokuWiki's savedir)
-        $repoWorkDir = DOKU_INC.$this->getConf('repoWorkDir');
-        Git::set_bin(Git::get_bin().' --work-tree '.escapeshellarg($repoWorkDir));
+		if ($isAutoDetermineRepos) {
+			$repoWorkDir = '';
+		} else {
+        	$repoWorkDir = trim(DOKU_INC.$this->getConf('repoWorkDir'));
+		}
+
+        Git::set_bin(empty($repoWorkDir) ? Git::get_bin() : Git::get_bin().' --work-tree '.escapeshellarg($repoWorkDir));
 
         $params = str_replace(
             array('%mail%','%user%'),
@@ -78,7 +92,12 @@ class action_plugin_gitbacked_editcommit extends DokuWiki_Action_Plugin {
     private function commitFile($filePath,$message) {
 		if (!$this->isIgnored($filePath)) {
 			try {
-				$repo = $this->initRepo();
+				$isAutoDetermineRepos = $this->getConf('autoDetermineRepos');
+				if ($isAutoDetermineRepos) {
+					$repo = $this->initRepo($isAutoDetermineRepos, $filePath);
+				} else {
+					$repo = $this->initRepo();
+				}
 
 				//add the changed file and set the commit message
 				$repo->add($filePath);

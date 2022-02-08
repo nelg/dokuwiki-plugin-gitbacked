@@ -5,6 +5,7 @@
  * @author Wolfgang Gassler <wolfgang@gassler.org>
  */
 
+$meta['autoDetermineRepos'] = array('onoff');
 $meta['pushAfterCommit'] = array('onoff');
 $meta['periodicPull'] = array('onoff');
 $meta['periodicMinutes'] = array('numeric');

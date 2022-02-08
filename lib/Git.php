@@ -212,8 +212,12 @@ class GitRepo {
 			if ($new_path = realpath($repo_path)) {
 				$repo_path = $new_path;
 				if (is_dir($repo_path)) {
+					$next_parent_repo_path = $this->absolute_git_dir($repo_path);
+					if (!empty($next_parent_repo_path)) {
+						$this->repo_path = $next_parent_repo_path;
+						$this->bare = false;
 					// Is this a work tree?
-					if (file_exists($repo_path."/.git") && is_dir($repo_path."/.git")) {
+					} else if (file_exists($repo_path."/.git") && is_dir($repo_path."/.git")) {
 						$this->repo_path = $repo_path;
 						$this->bare = false;
 					// Is this a bare repo?
@@ -253,6 +257,16 @@ class GitRepo {
 	}
 
 	/**
+	 * Get the path to the repo directory
+	 * 
+	 * @access public
+	 * @return string
+	 */
+	public function get_repo_path() {
+		return $this->repo_path;
+	}
+
+	/**
 	 * Get the path to the git repo directory (eg. the ".git" directory)
 	 * 
 	 * @access public
@@ -284,6 +298,40 @@ class GitRepo {
 
 		$status = trim(proc_close($resource));
 		return ($status != 127);
+	}
+
+	/**
+	 * Determine closest parent git repository for a given path
+	 *
+	 * @access  public
+	 * @return  string  the next parent git repo root dir or empty string, if no parent repo found
+	 */
+	public function absolute_git_dir($path) {
+		$descriptorspec = array(
+			1 => array('pipe', 'w'),
+			2 => array('pipe', 'w'),
+		);
+		$pipes = array();
+		$command = Git::get_bin()." rev-parse --absolute-git-dir";
+		//dbglog("Command: ".$command);
+		$resource = proc_open($command, $descriptorspec, $pipes, $path);
+		$stdout = stream_get_contents($pipes[1]);
+		$stderr = stream_get_contents($pipes[2]);
+		foreach ($pipes as $pipe) {
+			fclose($pipe);
+		}
+
+		$status = trim(proc_close($resource));
+		if ($status == 0) {
+			$repo_git_dir = trim($stdout);
+			if (!empty($repo_git_dir)) {
+				$repo_path = dirname($repo_git_dir);
+				if (file_exists($repo_path."/.git") && is_dir($repo_path."/.git")) {
+					return $repo_path;
+				}
+			}
+		}
+		return '';
 	}
 
 	/**
