@@ -50,6 +50,7 @@ class action_plugin_gitbacked_editcommit extends DokuWiki_Action_Plugin {
         }
 		if ($isAutoDetermineRepos) {
 			$repo = new GitRepo($repoPath, $this, false, false);
+			$repoPath = $repo->get_repo_path();
 		} else {
 			//init the repo and create a new one if it is not present
 			io_mkdir_p($repoPath);
@@ -57,12 +58,12 @@ class action_plugin_gitbacked_editcommit extends DokuWiki_Action_Plugin {
 		}
         //set git working directory (by default DokuWiki's savedir)
 		if ($isAutoDetermineRepos) {
-			$repoWorkDir = $repoPath;
+			$repoWorkDir = '';
 		} else {
-        	$repoWorkDir = DOKU_INC.$this->getConf('repoWorkDir');
+        	$repoWorkDir = trim(DOKU_INC.$this->getConf('repoWorkDir'));
 		}
 
-        Git::set_bin(Git::get_bin().' --work-tree '.escapeshellarg($repoWorkDir));
+        Git::set_bin(empty($repoWorkDir) ? Git::get_bin() : Git::get_bin().' --work-tree '.escapeshellarg($repoWorkDir));
 
         $params = str_replace(
             array('%mail%','%user%'),
