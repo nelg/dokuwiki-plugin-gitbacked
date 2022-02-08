@@ -33,8 +33,17 @@ class action_plugin_gitbacked_editcommit extends DokuWiki_Action_Plugin {
     }
 
     private function initRepo($isAutoDetermineRepos=false, $filePath="") {
-		if($isAutoDetermineRepos) {
+        //set the path to the git binary
+        $gitPath = trim($this->getConf('gitPath'));
+        if ($gitPath !== '') {
+            Git::set_bin($gitPath);
+        }
+
+		if ($isAutoDetermineRepos) {
 			$repoPath = dirname($filePath);
+			$repo = new GitRepo($repoPath, $this, false, false);
+			$repoPath = $repo->get_repo_path();
+			$repoWorkDir = '';
 		} else {
 			//get path to the repo root (by default DokuWiki's savedir)
 			if(defined('DOKU_FARM')) {
@@ -42,24 +51,10 @@ class action_plugin_gitbacked_editcommit extends DokuWiki_Action_Plugin {
 			} else {
 				$repoPath = DOKU_INC.$this->getConf('repoPath');
 			}
-		}
-        //set the path to the git binary
-        $gitPath = trim($this->getConf('gitPath'));
-        if ($gitPath !== '') {
-            Git::set_bin($gitPath);
-        }
-		if ($isAutoDetermineRepos) {
-			$repo = new GitRepo($repoPath, $this, false, false);
-			$repoPath = $repo->get_repo_path();
-		} else {
 			//init the repo and create a new one if it is not present
 			io_mkdir_p($repoPath);
 			$repo = new GitRepo($repoPath, $this, true, true);
-		}
-        //set git working directory (by default DokuWiki's savedir)
-		if ($isAutoDetermineRepos) {
-			$repoWorkDir = '';
-		} else {
+			//set git working directory (by default DokuWiki's savedir)
         	$repoWorkDir = trim(DOKU_INC.$this->getConf('repoWorkDir'));
 		}
 
